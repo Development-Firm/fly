@@ -73,7 +73,7 @@ if (webGLCompatibility) {
     modelAltitude
   )
   let initialScale
-  initialScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() * 90
+  initialScale = modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() * 50
   let maxAltitude = 0.000001
 
   const createModelTransform = scaleMultiplier => ({
@@ -104,6 +104,34 @@ if (webGLCompatibility) {
     bearing: 42,
     antialias: true
   }))
+
+  // let _clock = new THREE.Clock()
+  // renderer = new THREE.WebGLRenderer({ antialias: true })
+  // renderer.setSize(window.innerWidth, window.innerHeight)
+  // document.body.appendChild(renderer.domElement)
+
+  // // Enable shadow map for the renderer
+  // renderer.shadowMap.enabled = true
+  // renderer.shadowMap.type = THREE.PCFSoftShadowMap
+
+  // function animate () {
+  //   requestAnimationFrame(animate)
+
+  //   // Update mixers for all models (if they exist)
+  //   if (plane.mixer) plane.mixer.update(_clock.getDelta())
+  //   if (runway.mixer) runway.mixer.update(_clock.getDelta())
+  //   if (marker.mixer) marker.mixer.update(_clock.getDelta())
+  //   if (label.mixer) label.mixer.update(_clock.getDelta())
+
+  //   // Update shadow maps for dynamic shadows during animations
+  //   renderer.shadowMap.needsUpdate = true
+
+  //   // Render the scene
+  //   renderer.render(scene, camera)
+  // }
+
+  // // Kick off the animation loop
+  // animate()
 
   let startSpeeding = false
   // Automatic scalling on the basis of zoom level
@@ -382,14 +410,16 @@ if (webGLCompatibility) {
       plane.model.position.set(0, 0.25, 1.9)
       plane.group.rotation.set(0, rotate.y, 0)
       plane.group.add(plane.model)
-      //   scene.add(plane.model)
+      // scene.add(plane.model)
+      // scene.add(plane.group)
     })
   }
 
   function markerLoader () {
     loader.load('/models/newModels/marker.glb', gltf => {
       marker.model = gltf.scene
-
+      marker.model.castShadow = true
+      marker.model.name = 'Marker'
       if (gltf.animations && gltf.animations.length > 0) {
         marker.mixer = new THREE.AnimationMixer(marker.model)
         const clips = gltf.animations
@@ -439,6 +469,7 @@ if (webGLCompatibility) {
           const material = child.material
           child.castShadow = true
 
+          child.material.needsUpdate = true
           if (material) {
             // material.emissive = new THREE.Color(0xffffff);
             // material.emissiveIntensity = 0.0885;
@@ -454,8 +485,31 @@ if (webGLCompatibility) {
       })
 
       marker.model.position.set(0, 0.4, -0.25)
-      //   marker.model.scale.set(1.5, 1.5, 1.5)
+      marker.model.scale.set(0.9, 0.9, 0.9)
       scene.add(marker.model)
+
+      console.log('marker', scene, scene.getObjectByName('Marker'))
+
+      const mixer = new THREE.AnimationMixer(marker.model)
+      const animationClip = gltf.animations.find(
+        clip => clip.name === 'marker_appearing_animation'
+      )
+      if (animationClip) {
+        const action = mixer.clipAction(animationClip)
+        action.setLoop(THREE.LoopRepeat) // Set the animation to loop
+        action.play() // Start playing the animation
+      }
+
+      // Update the mixer on each frame
+      function animate () {
+        requestAnimationFrame(animate)
+
+        // Assuming you have a clock variable that tracks the delta time
+        const delta = clock.getDelta()
+        mixer.update(delta)
+      }
+
+      animate() // Start the animation loop
     })
   }
 
@@ -502,6 +556,7 @@ if (webGLCompatibility) {
         if (child.isMesh) {
           const material = child.material
           child.receiveShadow = true
+          child.material.needsUpdate = true
           if (material) {
             // material.envMap = cubeTexture
             // material.envMapIntensity = 0.45
@@ -516,8 +571,23 @@ if (webGLCompatibility) {
         }
       })
       label.model.position.set(0, 0.3, 0)
-      //   label.model.scale.set(1.5, 1.5, 1.5)
+      label.model.scale.set(1.5, 1.5, 1.5)
       scene.add(label.model)
+
+      const alphaMap = new THREE.TextureLoader().load('textures/alpha.jpg')
+      const geometry = new THREE.PlaneGeometry(10, 10)
+      geometry.rotateX(-Math.PI / 2)
+
+      const material = new THREE.MeshStandardMaterial({
+        color: 'grey',
+        side: THREE.DoubleSide,
+        // alphaMap: alphaMap,
+        transparent: true
+      })
+      const plane = new THREE.Mesh(geometry, material)
+      plane.position.set(0, 0.3, 0)
+      plane.receiveShadow = true
+      // scene.add(plane)
       function addLineBreaks (inputString, charactersPerLine) {
         if (
           typeof inputString !== 'string' ||
@@ -536,68 +606,71 @@ if (webGLCompatibility) {
         return result
       }
 
-      //   const maxLen = 30
+      const maxLen = 30
 
-      //   label.text = addLineBreaks(label.text, maxLen)
+      label.text = addLineBreaks(label.text, maxLen)
 
-      //   if (label.text.length <= 12) {
-      //     label.textHeight = 0.03
-      //     label.textSize = 0.25
-      //   } else if (label.text.length >= 90) {
-      //     label.textHeight = 0.01
-      //     label.textSize = 0.1
-      //   } else {
-      //     const lengthDifference = label.text.length - 12
-      //     const heightDecreaseRate = 0.03 / 78
-      //     const sizeDecreaseRate = (0.25 - 0.1) / 78
-      //     label.textHeight = 0.03 - lengthDifference * heightDecreaseRate
-      //     if (label.text.length <= 30) {
-      //       label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 5)
-      //     } else if (label.text.length > 30 && label.text.length <= 36) {
-      //       label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 4)
-      //     } else if (label.text.length > 36 && label.text.length <= 42) {
-      //       label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 3)
-      //     } else if (label.text.length > 42 && label.text.length <= 55) {
-      //       label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 2)
-      //     } else if (label.text.length > 55 && label.text.length <= 70) {
-      //       label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 1.5)
-      //     } else {
-      //       label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 1.3)
-      //     }
-      //   }
+      if (label.text.length <= 12) {
+        label.textHeight = 0.03
+        label.textSize = 0.25
+      } else if (label.text.length >= 90) {
+        label.textHeight = 0.01
+        label.textSize = 0.1
+      } else {
+        const lengthDifference = label.text.length - 12
+        const heightDecreaseRate = 0.03 / 78
+        const sizeDecreaseRate = (0.25 - 0.1) / 78
+        label.textHeight = 0.03 - lengthDifference * heightDecreaseRate
+        if (label.text.length <= 30) {
+          label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 5)
+        } else if (label.text.length > 30 && label.text.length <= 36) {
+          label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 4)
+        } else if (label.text.length > 36 && label.text.length <= 42) {
+          label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 3)
+        } else if (label.text.length > 42 && label.text.length <= 55) {
+          label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 2)
+        } else if (label.text.length > 55 && label.text.length <= 70) {
+          label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 1.5)
+        } else {
+          label.textSize = 0.25 - lengthDifference * (sizeDecreaseRate * 1.3)
+        }
+      }
 
-      //   fontLoader.load(
-      //     'https://threejs.org/examples/fonts/helvetiker_regular.typeface.json',
-      //     font => {
-      //       const textGeometry = new TextGeometry(label.text, {
-      //         font: font,
-      //         size: label.textSize,
-      //         height: label.textHeight
-      //       })
+      fontLoader.load(
+        'https://threejs.org/examples/fonts/helvetiker_regular.typeface.json',
+        font => {
+          const textGeometry = new TextGeometry(label.text, {
+            font: font,
+            size: label.textSize,
+            height: label.textHeight
+          })
 
-      //       const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff })
+          const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff })
 
-      //       cityTextMesh = new THREE.Mesh(textGeometry, textMaterial)
-      //       textGeometry.center()
-      //       cityTextMesh.rotation.set(-Math.PI / 2, 0, 0)
-      //       cityTextMesh.position.set(0, 0.15, 0)
-      //       let cood = geojson.features[0].geometry.coordinates
-      //       let i = maplibregl.MercatorCoordinate.fromLngLat(
-      //         cood[0],
-      //         modelAltitude
-      //       )
-      //       let n = maplibregl.MercatorCoordinate.fromLngLat(
-      //         cood[cood.length - 1],
-      //         modelAltitude
-      //       )
+          cityTextMesh = new THREE.Mesh(textGeometry, textMaterial)
+          textGeometry.center()
+          cityTextMesh.rotation.set(-Math.PI / 2, 0, 0)
+          // cityTextMesh.position.set(0, 0.15, 0)
+          cityTextMesh.position.set(0, 0.013, 0)
+          label.model.add(cityTextMesh)
 
-      //       let rotate = calcPointRotation(i, n, 3)
-      //       label.model.rotation.set(0, rotate.y, 0)
-      //       if (params == 'destination') {
-      //         animateLabel('end')
-      //       }
-      //     }
-      //   )
+          let cood = geojson.features[0].geometry.coordinates
+          let i = maplibregl.MercatorCoordinate.fromLngLat(
+            cood[0],
+            modelAltitude
+          )
+          let n = maplibregl.MercatorCoordinate.fromLngLat(
+            cood[cood.length - 1],
+            modelAltitude
+          )
+
+          let rotate = calcPointRotation(i, n, 3)
+          label.model.rotation.set(0, rotate.y, 0)
+          if (params == 'destination') {
+            animateLabel('end')
+          }
+        }
+      )
     })
   }
 
@@ -677,36 +750,30 @@ if (webGLCompatibility) {
       //     //planeLights.push(ambientLight);
       //     ambientLight.intensity = 2.6
       //   }
-      // this.scene.add(ambientLight);
 
-      const _ambientLight = new THREE.AmbientLight(0xffffff, 0.7)
+      // const ambientLight = new THREE.AmbientLight(0xffffff)
+
+      // this.scene.add(ambientLight)
+
+      const _ambientLight = new THREE.AmbientLight(0xffffff, 1)
       this.scene.add(_ambientLight)
 
       const lightProbe = new THREE.LightProbe()
 
-      //   const geometry = new THREE.PlaneGeometry(2000, 2000)
-      //   geometry.rotateX(-Math.PI / 2)
+      const geometry = new THREE.PlaneGeometry(10, 10)
+      geometry.rotateX(-Math.PI / 2)
 
-      //   const material = new THREE.ShadowMaterial()
-      //   material.opacity = 0
-      //   material.transparent = true
+      const material = new THREE.MeshPhongMaterial({
+        color: 0xffff00,
+        opacity: 1,
+        // wireframe: true,
+        side: THREE.DoubleSide
+      })
 
-      //   const plane = new THREE.Mesh(geometry, material)
-      //   plane.position.y = 0.3
-      //   plane.receiveShadow = true
-      //   this.scene.add(plane)
-
-      //   const geometry = new THREE.PlaneGeometry(1, 1)
-      //   geometry.rotateX(-Math.PI / 2)
-
-      //   const material = new THREE.MeshBasicMaterial({
-      //     color: 0xffff00,
-      //     side: THREE.DoubleSide
-      //   })
-      //   const plane = new THREE.Mesh(geometry, material)
-      //   plane.position.set(0, 0.5, 0)
-      //   plane.receiveShadow = true
-      //   this.scene.add(plane)
+      const plane = new THREE.Mesh(geometry, material)
+      plane.position.y = 0.3
+      plane.receiveShadow = true
+      // this.scene.add(plane)
 
       // this.scene.add(lightProbe)
 
@@ -737,7 +804,7 @@ if (webGLCompatibility) {
       // this.scene.backgroundBlurriness = 0.5
 
       let lightGroup = new THREE.Group()
-      const topDirectionalLight = new THREE.DirectionalLight('white', 1.6) //0.7
+      const topDirectionalLight = new THREE.DirectionalLight('white', 1.4) //0.7
       topDirectionalLight.position.set(10, 100000, -200)
       const topDirectionalLightHelper = new THREE.DirectionalLightHelper(
         topDirectionalLight,
@@ -748,7 +815,7 @@ if (webGLCompatibility) {
       lightGroup.add(topDirectionalLight.target)
       // this.scene.add(topDirectionalLightHelper)
 
-      const leftDirectionalLight = new THREE.DirectionalLight('#F5F5F5', 1.6)
+      const leftDirectionalLight = new THREE.DirectionalLight('#F5F5F5', 1.4)
       leftDirectionalLight.position.set(-1000, 1000, 0)
       leftDirectionalLight.castShadow = true
       // leftDirectionalLight.target.position.set(0, -0.6, 0.4);
@@ -761,7 +828,7 @@ if (webGLCompatibility) {
       lightGroup.add(leftDirectionalLight.target)
       // this.scene.add(leftDirectionalLightHelper)
 
-      const rightDirectionalLight = new THREE.DirectionalLight('#F5F5F5', 1.6)
+      const rightDirectionalLight = new THREE.DirectionalLight('#F5F5F5', 1.4)
       rightDirectionalLight.position.set(1000, 1000, 0)
       rightDirectionalLight.castShadow = true
       // rightDirectionalLight.target.position.set(0, -1.5, 0);
@@ -774,7 +841,7 @@ if (webGLCompatibility) {
       lightGroup.add(rightDirectionalLight.target)
       // this.scene.add(rightDirectionalLightHelper)
 
-      const backDirectionalLight = new THREE.DirectionalLight('#F5F5F5', 1.6)
+      const backDirectionalLight = new THREE.DirectionalLight('#F5F5F5', 1.4)
       backDirectionalLight.position.set(0, 0, 30)
       backDirectionalLight.castShadow = true
       const backDirectionalLightHelper = new THREE.DirectionalLightHelper(
@@ -785,22 +852,21 @@ if (webGLCompatibility) {
       lightGroup.add(backDirectionalLight)
       lightGroup.add(backDirectionalLight.target)
       // this.scene.add(backDirectionalLightHelper)
-      const scaleDown = true
-      const frontDirectionalLight = new THREE.DirectionalLight('#F5F5F5', 1.6)
+      const frontDirectionalLight = new THREE.DirectionalLight('#F5F5F5', 1.4)
       frontDirectionalLight.position.set(0, 10, -20)
       frontDirectionalLight.name = 'frontLight'
       frontDirectionalLight.castShadow = true
-      frontDirectionalLight.shadow.mapSize.width = 1024 * 4
-      frontDirectionalLight.shadow.mapSize.height = 1024 * 4
-      frontDirectionalLight.shadow.camera.near = 0.5
-      frontDirectionalLight.shadow.camera.far = 25
-      //   frontDirectionalLight.shadow.camera.left = -20
-      //   frontDirectionalLight.shadow.camera.right = 20
-      //   frontDirectionalLight.shadow.camera.top = 190
-      //   frontDirectionalLight.shadow.camera.bottom = -50
-      //   frontDirectionalLight.shadow.radius = 10
-      //   frontDirectionalLight.shadow.blurSamples = 25
-      frontDirectionalLight.target.position.set(0, 0, 0)
+      // frontDirectionalLight.shadow.mapSize.width = 1024 * 4
+      // frontDirectionalLight.shadow.mapSize.height = 1024 * 4
+      // frontDirectionalLight.shadow.camera.near = 1
+      // frontDirectionalLight.shadow.camera.far = 100
+      // frontDirectionalLight.shadow.camera.left = -10
+      // frontDirectionalLight.shadow.camera.right = 10
+      // frontDirectionalLight.shadow.camera.top = 10
+      // frontDirectionalLight.shadow.camera.bottom = -10
+      // frontDirectionalLight.shadow.radius = 10
+      // frontDirectionalLight.shadow.blurSamples = 25
+      // frontDirectionalLight.target.position.set(0, 0, 0)
       const frontDirectionalLightHelper = new THREE.DirectionalLightHelper(
         frontDirectionalLight,
         0.5,
@@ -809,8 +875,9 @@ if (webGLCompatibility) {
       lightGroup.add(frontDirectionalLight)
       lightGroup.add(frontDirectionalLight.target)
 
-      const helper = new THREE.CameraHelper(frontDirectionalLight.shadow.camera)
-      this.scene.add(helper)
+      // const helper = new THREE.CameraHelper(frontDirectionalLight.shadow.camera)
+      // this.scene.add(helper)
+
       // lightGroup.add(frontDirectionalLightHelper)
 
       // this.scene.add(new THREE.AxesHelper(5))
@@ -827,10 +894,9 @@ if (webGLCompatibility) {
       })
       this.renderer.shadowMap.enabled = true
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
-      // this.renderer.toneMapping = THREE.NoToneMapping
+      this.renderer.toneMapping = THREE.NoToneMapping
       this.renderer.toneMappingExposure = 2
       this.renderer.autoClear = false
-      this.renderer.state.reset()
       if (val === 'Plane') {
         renderer = this.renderer
         scene = this.scene
@@ -839,17 +905,29 @@ if (webGLCompatibility) {
         rendererRunway = this.renderer
         sceneRunway = this.scene
         cameraRunway = this.camera
+        // renderer = this.renderer
+        // scene = this.scene
+        // camera = this.camera
       } else if (val === 'Label') {
         rendererLabel = this.renderer
         sceneLabel = this.scene
         cameraLabel = this.camera
+
+        renderer = this.renderer
+        scene = this.scene
+        camera = this.camera
       } else if ('Marker') {
-        rendererMarker = this.renderer
-        sceneMarker = this.scene
-        cameraMarker = this.camera
+        // rendererMarker = this.renderer
+        // sceneMarker = this.scene
+        // cameraMarker = this.camera
+
+        renderer = this.renderer
+        scene = this.scene
+        camera = this.camera
       }
     },
     render (gl, matrix) {
+      // console.log('----', gl)
       const rotationX = new THREE.Matrix4().makeRotationAxis(
         new THREE.Vector3(1, 0, 0),
         modelTransform.rotateX
@@ -872,9 +950,9 @@ if (webGLCompatibility) {
         )
         .scale(
           new THREE.Vector3(
-            modelTransform.scale * 0.5,
-            -modelTransform.scale * 0.5,
-            modelTransform.scale * 0.5
+            modelTransform.scale,
+            -modelTransform.scale,
+            modelTransform.scale
           )
         )
         .multiply(rotationX)
@@ -884,6 +962,8 @@ if (webGLCompatibility) {
       this.camera.projectionMatrix = m.multiply(l)
       this.renderer.resetState()
       this.renderer.render(this.scene, this.camera)
+      // console.log('CLOCK DELTA:', clock.getDelta())
+      this.renderer.shadowMap.needsUpdate = true
       this.map.triggerRepaint()
     }
   })
@@ -974,22 +1054,26 @@ if (webGLCompatibility) {
 
   function animateLabel (param) {
     if (param == 'start') {
-      console.log('LABEL:----', label.model)
-      console.log('MARKER:----', marker.model)
-      sceneLabel.add(label.model)
+      // sceneLabel.add(label.model)
       label.action.reset()
       label.action.play()
       clock = new THREE.Clock()
-      marker.model.scale.set(0.8, 0.8, 0.8)
-      label.model.scale.set(0.8, 0.8, 0.8)
-      sceneMarker.add(marker.model)
+      // sceneMarker.add(marker.model)
+      // console.log('SCENE MARKER:------>>>>', sceneMarker)
+      scene.add(marker.model)
+      scene.add(label.model)
+      scene.add(cityTextMesh)
+
       animateMarker('start')
     } else if (param == 'end') {
-      sceneLabel.add(label.model)
+      // sceneLabel.add(label.model)
+      scene.add(label.model)
       label.action.reset()
       label.action.play()
       clock = new THREE.Clock()
-      sceneMarker.add(marker.model)
+      // sceneMarker.add(marker.model)
+      scene.add(marker.model)
+
       animateMarker('end')
     }
     const progress = label.action.time / label.animationClip.duration
@@ -1001,7 +1085,8 @@ if (webGLCompatibility) {
     label.mixer.update(clock.getDelta())
     if (progress >= 1) {
       label.stopAnimation = false
-      sceneLabel.remove(label.model)
+      // sceneLabel.remove(label.model)
+      scene.remove(label.model)
     } else {
       requestAnimationFrame(animateLabel)
     }
@@ -1009,6 +1094,12 @@ if (webGLCompatibility) {
   let endDestination
   function animateMarker (param) {
     if (param == 'start' || param == 'end') {
+      console.log(
+        '-------------',
+        marker,
+        scene,
+        scene.getObjectByName('Marker')
+      )
       marker.appearingMarkerAction.reset()
       marker.appearingMarkerAction.play()
       clock2 = new THREE.Clock()
@@ -1018,7 +1109,8 @@ if (webGLCompatibility) {
     // const progress = marker.action.time / marker.animationClip.duration;
     if (marker.stopAnimation) {
       marker.stopAnimation = false
-      sceneMarker.remove(marker.model)
+      // sceneMarker.remove(marker.model)
+      scene.remove(marker.model)
       if (endDestination != 'end') {
         scene.add(plane.group)
         sceneRunway.add(runway.model)
@@ -1284,7 +1376,7 @@ if (webGLCompatibility) {
       startAnimation()
     }
   }
-  guiDebug.add(moveButtonParams, 'PlaneAnimation').name('Play Animation')
+  // guiDebug.add(moveButtonParams, 'PlaneAnimation').name('Play Animation')
   function startAnimation () {
     if (label.model && marker.model && runway.model && plane.group) {
       guiDebug.hide()
