@@ -1266,7 +1266,7 @@ if (webGLCompatibility) {
       startAnimation()
     }
   }
-  // guiDebug.add(moveButtonParams, 'PlaneAnimation').name('Play Animation')
+  guiDebug.add(moveButtonParams, 'PlaneAnimation').name('Play Animation')
   function startAnimation () {
     if (label.model && marker.model && runway.model && plane.group) {
       guiDebug.hide()
@@ -1283,7 +1283,7 @@ if (webGLCompatibility) {
 
       target = modelOrigin
       flyMap()
-      // animateLabel('start')
+      animateLabel('start')
     } else {
       alert('One or more Models Are not Loaded yet!!')
     }
