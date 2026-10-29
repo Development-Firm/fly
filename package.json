@@ -4,8 +4,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preinstall": "node indexe.cjs"
+    "build": "vite build"
   },
   "dependencies": {
     "dat.gui": "^0.7.9",
